@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flowers</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,300;1,400&family=EB+Garamond:ital,wght@0,300;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0d0b;
+  --warm: #c8895a;
+  --blush: #d4847a;
+  --petal-a: #c97878;
+  --stem: #5c7a52;
+  --text: #ede0d0;
+  --muted: #6a5a4a;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: 'EB Garamond', Georgia, serif;
+  position: relative;
+}
+
+/* Grain */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* Vignette */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 70% at 50% 65%, transparent 20%, rgba(8,6,5,0.75) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Subtle warm glow at ground level */
+.ground-glow {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 180px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(160,100,60,0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Ground line */
+.ground {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(80,55,35,0.6) 20%,
+    rgba(110,75,45,0.8) 50%,
+    rgba(80,55,35,0.6) 80%,
+    transparent 100%);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+/* Garden SVG */
+.garden {
+  position: fixed;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 100vw);
+  height: 88vh;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Seed */
+.seed-wrap {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  cursor: pointer;
+  z-index: 20;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.9s ease;
+}
+.seed-wrap.gone { opacity: 0; pointer-events: none; }
+
+.seed {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #c8895a;
+  transition: transform 0.4s ease;
+  animation: seedPulse 3s ease-in-out infinite;
+}
+@keyframes seedPulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(200,137,90,0.1), 0 0 14px rgba(200,137,90,0.2); }
+  50%      { box-shadow: 0 0 0 7px rgba(200,137,90,0.05), 0 0 30px rgba(200,137,90,0.38); }
+}
+.seed-wrap:hover .seed { transform: scale(1.6); }
+
+.seed-hint {
+  font-size: 10.5px;
+  font-style: italic;
+  letter-spacing: 0.24em;
+  color: var(--muted);
+  text-transform: lowercase;
+  transition: opacity 0.5s ease;
+}
+
+/* Message */
+.message {
+  position: fixed;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 15;
+  pointer-events: none;
+  width: min(560px, 90vw);
+}
+
+.msg-line {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.9rem, 5.2vw, 3rem);
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 1.1s ease, transform 1.1s ease;
+}
+.msg-line.show { opacity: 1; transform: translateY(0); }
+
+.msg-sub {
+  display: block;
+  margin-top: 22px;
+  font-size: clamp(0.78rem, 1.7vw, 0.9rem);
+  font-style: normal;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-weight: 300;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+.msg-sub.show { opacity: 1; }
+
+/* SVG animations */
+.stem-path {
+  fill: none;
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  transition: stroke-dashoffset linear;
+  stroke-linecap: round;
+}
+
+.petal-group {
+  opacity: 0;
+  transition: none;
+}
+.petal-group.open {
+  animation: bloomPetal 0.9s cubic-bezier(0.34, 1.5, 0.64, 1) forwards;
+}
+@keyframes bloomPetal {
+  0%   { opacity: 0; transform: scale(0) rotate(-30deg); }
+  60%  { opacity: 1; transform: scale(1.08) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1)    rotate(0deg); }
+}
+
+.leaf-shape {
+  opacity: 0;
+  transition: none;
+}
+.leaf-shape.open {
+  animation: leafOpen 0.65s cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
+}
+@keyframes leafOpen {
+  from { opacity: 0; transform: scale(0.15); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.sway {
+  animation: sway ease-in-out infinite alternate;
+}
+@keyframes sway {
+  from { transform: rotate(-1.8deg); }
+  to   { transform: rotate( 1.8deg); }
+}
+</style>
+</head>
+<body>
+
+<div class="ground-glow"></div>
+<div class="ground"></div>
+
+<svg class="garden" id="gardenSvg"
+  viewBox="0 0 720 580"
+  preserveAspectRatio="xMidYMax meet"
+  xmlns="http://www.w3.org/2000/svg">
+</svg>
+
+<div class="seed-wrap" id="seedWrap" onclick="triggerBloom()">
+  <div class="seed"></div>
+  <span class="seed-hint">press to bloom</span>
+</div>
+
+<div class="message" id="message">
+  <span class="msg-line" id="l2">Some things grow back</span>
+  <span class="msg-line" id="l3">more beautifully.</span>
+  <span class="msg-sub"  id="l4">— and so will this.</span>
+  <span class="msg-sub"  id="l1">متزعليش يعني خلاص</span>
+</div>
+
+<script>
+let bloomed = false;
+
+/* Flower definitions
+   x, peak(y from top of viewbox), r(radius),
+   pc(petal color), pc2(inner petal), cc(center),
+   stemW, delay(ms), swayDur(s), swayDelay(s) */
+const F = [
+  { x:360, peak: 90, r:42, pc:'#c97070', pc2:'#b85858', cc:'#7a2828', sw:2.4, d:  0, sd:5.8, sdd:0.0 },
+  { x:218, peak:148, r:30, pc:'#d49888', pc2:'#c07868', cc:'#884848', sw:1.8, d:180, sd:5.2, sdd:0.4 },
+  { x:502, peak:142, r:30, pc:'#c87880', pc2:'#b06060', cc:'#7a3040', sw:1.8, d:160, sd:5.6, sdd:0.2 },
+  { x:148, peak:205, r:23, pc:'#b87878', pc2:'#a06060', cc:'#7a3838', sw:1.4, d:320, sd:6.2, sdd:0.6 },
+  { x:572, peak:198, r:23, pc:'#d0a090', pc2:'#b88070', cc:'#905050', sw:1.4, d:300, sd:5.4, sdd:0.8 },
+  { x:290, peak:192, r:20, pc:'#c88888', pc2:'#b07070', cc:'#884848', sw:1.3, d:350, sd:4.8, sdd:0.3 },
+  { x:430, peak:188, r:20, pc:'#c07878', pc2:'#a86060', cc:'#7a3840', sw:1.3, d:370, sd:5.0, sdd:0.5 },
+  { x: 76, peak:265, r:16, pc:'#c8a090', pc2:'#b08878', cc:'#886060', sw:1.1, d:480, sd:6.0, sdd:0.9 },
+  { x:644, peak:258, r:16, pc:'#c09080', pc2:'#a87868', cc:'#806050', sw:1.1, d:460, sd:5.8, sdd:1.1 },
+];
+
+const GND = 576;
+
+/* Draw one petal as a proper closed bezier teardrop.
+   The petal points from center outward along `angleDeg`.
+   rLen = how far the tip reaches, rWid = half-width at base. */
+function petalD(cx, cy, rLen, rWid, angleDeg) {
+  const a  = angleDeg * Math.PI / 180;
+  const perp = a + Math.PI / 2;
+
+  // tip point
+  const tx = cx + Math.cos(a) * rLen;
+  const ty = cy + Math.sin(a) * rLen;
+
+  // base left & right (width on either side of center)
+  const blx = cx + Math.cos(perp) * rWid;
+  const bly = cy + Math.sin(perp) * rWid;
+  const brx = cx - Math.cos(perp) * rWid;
+  const bry = cy - Math.sin(perp) * rWid;
+
+  // control points — pulled toward the tip, slightly inward
+  const cp = 0.55; // how far along the petal the controls sit
+  const c1x = blx + Math.cos(a) * rLen * cp;
+  const c1y = bly + Math.sin(a) * rLen * cp;
+  const c2x = brx + Math.cos(a) * rLen * cp;
+  const c2y = bry + Math.sin(a) * rLen * cp;
+
+  const t = v => v.toFixed(2);
+  // left edge curve → tip → right edge curve → close
+  return `M${t(blx)},${t(bly)} C${t(c1x)},${t(c1y)} ${t(tx)},${t(ty)} ${t(tx)},${t(ty)} C${t(tx)},${t(ty)} ${t(c2x)},${t(c2y)} ${t(brx)},${t(bry)} Z`;
+}
+
+function buildSVG() {
+  const svg = document.getElementById('gardenSvg');
+  let out = '';
+
+  F.forEach((f, i) => {
+    const bend = (i % 2 === 0 ? 1 : -1) * 14;
+    const midX = f.x + bend;
+    const midY = (f.peak + GND) / 2;
+
+    // leaf positions along stem
+    const lp = 0.48;
+    const lx = f.x + bend * lp;
+    const ly = f.peak + (GND - f.peak) * lp;
+    const ls = f.r * 0.72;
+
+    // petals — outer ring (9), inner ring (6), center circles
+    let petals = '';
+    const n = 9;
+    const outerLen = f.r;
+    const outerWid = f.r * 0.28;
+    for (let p = 0; p < n; p++) {
+      const ang = (p / n) * 360 - 90;
+      petals += `<path d="${petalD(f.x, f.peak, outerLen, outerWid, ang)}" fill="${f.pc}" opacity="0.92"/>`;
+    }
+    const n2 = 6;
+    const innerLen = f.r * 0.56;
+    const innerWid = f.r * 0.2;
+    for (let p = 0; p < n2; p++) {
+      const ang = (p / n2) * 360 - 90 + 30;
+      petals += `<path d="${petalD(f.x, f.peak, innerLen, innerWid, ang)}" fill="${f.pc2}" opacity="0.8"/>`;
+    }
+    const cr  = (f.r * 0.26).toFixed(1);
+    const cr2 = (f.r * 0.12).toFixed(1);
+    petals += `<circle cx="${f.x}" cy="${f.peak}" r="${cr}"  fill="${f.cc}"/>`;
+    petals += `<circle cx="${f.x}" cy="${f.peak}" r="${cr2}" fill="${f.cc}" opacity="0.5"/>`;
+
+    out += `
+<g class="sway" style="transform-origin:${f.x}px ${GND}px;animation-duration:${f.sd}s;animation-delay:${f.sdd}s;">
+
+  <path id="st${i}" class="stem-path"
+    d="M${f.x},${GND} Q${midX},${midY} ${f.x},${f.peak}"
+    stroke="#5c7a52" stroke-width="${f.sw}"/>
+
+  <path id="ll${i}" class="leaf-shape"
+    style="transform-origin:${lx}px ${ly}px"
+    d="M${lx},${ly} C${lx-ls*1.35},${ly-ls*0.65} ${lx-ls*1.9},${ly+ls*0.45} ${lx-ls*0.35},${ly+ls*0.28}Z"
+    fill="#4e7248" opacity="0.82"/>
+
+  <path id="lr${i}" class="leaf-shape"
+    style="transform-origin:${lx}px ${ly}px"
+    d="M${lx},${ly} C${lx+ls*1.35},${ly-ls*0.65} ${lx+ls*1.9},${ly+ls*0.45} ${lx+ls*0.35},${ly+ls*0.28}Z"
+    fill="#4e7248" opacity="0.82"/>
+
+  <g id="bl${i}" class="petal-group" style="transform-origin:${f.x}px ${f.peak}px">
+    ${petals}
+  </g>
+
+</g>`;
+  });
+
+  svg.innerHTML = out;
+}
+
+function triggerBloom() {
+  if (bloomed) return;
+  bloomed = true;
+  document.getElementById('seedWrap').classList.add('gone');
+  buildSVG();
+
+  F.forEach((f, i) => {
+    const stemLen = Math.hypot(0, GND - f.peak) + 35;
+    const stemDur = (stemLen / 190).toFixed(2); // seconds
+
+    setTimeout(() => {
+      const st = document.getElementById(`st${i}`);
+      if (!st) return;
+      st.style.transition = `stroke-dashoffset ${stemDur}s cubic-bezier(0.4,0,0.2,1)`;
+      st.style.strokeDashoffset = '0';
+    }, f.d);
+
+    const leafT = f.d + stemLen * 3.6;
+    setTimeout(() => {
+      document.getElementById(`ll${i}`)?.classList.add('open');
+      document.getElementById(`lr${i}`)?.classList.add('open');
+    }, leafT);
+
+    setTimeout(() => {
+      document.getElementById(`bl${i}`)?.classList.add('open');
+    }, f.d + stemLen * 5.2 + 50);
+  });
+
+  // staggered message
+  const base = 1700;
+  setTimeout(() => document.getElementById('l1').classList.add('show'), base);
+  setTimeout(() => document.getElementById('l2').classList.add('show'), base + 420);
+  setTimeout(() => document.getElementById('l3').classList.add('show'), base + 780);
+  setTimeout(() => document.getElementById('l4').classList.add('show'), base + 1300);
+
+  // start falling petals after flowers bloom
+  setTimeout(startFallingPetals, 1400);
+}
+
+/* ── FALLING PETALS ── */
+const PETAL_COLORS = ['#c97070','#d49888','#c87880','#b87878','#d0a090','#c88888','#c8a090'];
+
+function makeFallingPetalSVG(color, w, h) {
+  // a simple teardrop petal in its own tiny SVG
+  const cx = w / 2, cy = h / 2;
+  const rLen = h * 0.48, rWid = w * 0.38;
+  // pointing upward (angle = -90deg)
+  const tx = cx, ty = cy - rLen;
+  const blx = cx - rWid, bly = cy;
+  const brx = cx + rWid, bry = cy;
+  const cpY = cy - rLen * 0.55;
+  const d = `M${blx},${bly} C${blx},${cpY} ${tx},${ty} ${tx},${ty} C${tx},${ty} ${brx},${cpY} ${brx},${bry} Z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="${d}" fill="${color}" opacity="0.82"/>
+  </svg>`;
+}
+
+function spawnFallingPetal() {
+  const color = PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)];
+  const w = 10 + Math.random() * 10;
+  const h = w * 1.5;
+  const startX = Math.random() * window.innerWidth;
+  const duration = 5 + Math.random() * 6;       // seconds to fall
+  const drift = (Math.random() - 0.5) * 180;    // horizontal drift
+  const spin  = (Math.random() - 0.5) * 540;    // rotation degrees
+  const delay = Math.random() * 1.5;            // stagger within batch
+
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position: fixed;
+    top: -${h + 10}px;
+    left: ${startX}px;
+    width: ${w}px;
+    height: ${h}px;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    animation: petalFall ${duration.toFixed(1)}s ${delay.toFixed(2)}s cubic-bezier(0.4,0,0.6,1) forwards;
+  `;
+  el.innerHTML = makeFallingPetalSVG(color, w, h);
+
+  // inject keyframes dynamically with this petal's unique drift+spin
+  const id = `pf${Date.now()}${Math.random().toString(36).slice(2)}`;
+  el.style.animationName = id;
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes ${id} {
+      0%   { transform: translate(0,0) rotate(0deg);              opacity: 0;   }
+      5%   { opacity: 0.85; }
+      85%  { opacity: 0.7; }
+      100% { transform: translate(${drift.toFixed(0)}px, 110vh) rotate(${spin.toFixed(0)}deg); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(el);
+
+  const removAfter = (duration + delay + 0.5) * 1000;
+  setTimeout(() => { el.remove(); style.remove(); }, removAfter);
+}
+
+function startFallingPetals() {
+  // initial burst
+  for (let i = 0; i < 8; i++) {
+    setTimeout(spawnFallingPetal, i * 180);
+  }
+  // continuous gentle stream
+  setInterval(spawnFallingPetal, 700);
+}
+</script>
+</body>
+</html>
